@@ -67,6 +67,7 @@ MY_INFO = {
     "first_name": field("legalNameSection_firstName", "legalName--firstName"),
     "last_name": field("legalNameSection_lastName", "legalName--lastName"),
     "address_line1": field("addressSection_addressLine1", "address--addressLine1"),
+    "address_line2": field("addressSection_addressLine2", "address--addressLine2"),
     "city": field("addressSection_city", "address--city"),
     "state": field("addressSection_countryRegion", "address--countryRegion"),
     "postal_code": field("addressSection_postalCode", "address--postalCode"),

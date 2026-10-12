@@ -7,6 +7,7 @@
     "phone_device_type": "Mobile",
     "address": {
       "line1": "123 Main St",
+      "line2": "Apt 4B",
       "city": "Austin",
       "state": "Texas",
       "postal_code": "78701",

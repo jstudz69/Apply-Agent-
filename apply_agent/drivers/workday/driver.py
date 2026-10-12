@@ -285,6 +285,7 @@ class WorkdayDriver:
             "first_name": c.first_name,
             "last_name": c.last_name,
             "address_line1": c.address.line1,
+            "address_line2": c.address.line2,
             "city": c.address.city,
             "state": c.address.state,
             "postal_code": c.address.postal_code,

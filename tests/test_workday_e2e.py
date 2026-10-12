@@ -75,6 +75,7 @@ def test_full_application_stops_at_review_and_logs_proof(page, mock_server, prof
     info = sub["My Information"]
     assert info["formField-legalNameSection_firstName"] == "Alex"
     assert info["formField-addressSection_countryRegion"] == "Texas"
+    assert info["formField-addressSection_addressLine2"] == "Apt 4B"
     assert info["formField-candidateIsPreviousWorker"] == "No"
     assert info["formField-source"] == "LinkedIn"
 
