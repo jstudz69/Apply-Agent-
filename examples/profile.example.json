@@ -1,0 +1,73 @@
+{
+  "contact": {
+    "first_name": "Alex",
+    "last_name": "Rivera",
+    "email": "alex.rivera@gmail.com",
+    "phone": "5551234567",
+    "phone_device_type": "Mobile",
+    "address": {
+      "line1": "123 Main St",
+      "city": "Austin",
+      "state": "Texas",
+      "postal_code": "78701",
+      "country": "United States of America"
+    },
+    "linkedin": "https://www.linkedin.com/in/alexrivera",
+    "website": "https://github.com/alexrivera"
+  },
+  "work_history": [
+    {
+      "title": "Senior Data Analyst",
+      "company": "Acme Analytics",
+      "location": "Austin, TX",
+      "start": {"year": 2021, "month": 3},
+      "end": null,
+      "description": "Own the revenue forecasting pipeline (Python, dbt, Snowflake)."
+    },
+    {
+      "title": "Data Analyst",
+      "company": "Globex",
+      "location": "Dallas, TX",
+      "start": {"year": 2018, "month": 6},
+      "end": {"year": 2021, "month": 2},
+      "description": "Built self-serve dashboards used by 300+ staff."
+    }
+  ],
+  "education": [
+    {
+      "school": "University of Texas at Austin",
+      "degree": "Bachelor's Degree",
+      "field_of_study": "Economics",
+      "start": {"year": 2014, "month": 8},
+      "end": {"year": 2018, "month": 5}
+    }
+  ],
+  "skills": ["Python", "SQL", "dbt", "Tableau"],
+  "work_authorization": {
+    "authorized_countries": ["United States of America"],
+    "requires_sponsorship_now": false,
+    "requires_sponsorship_future": false
+  },
+  "preferences": {
+    "willing_to_relocate": false,
+    "salary_expectation": "135,000 USD base",
+    "salary_min": 120000,
+    "notice_period": "2 weeks",
+    "remote_preference": "hybrid"
+  },
+  "self_id": {
+    "gender": "I do not wish to self-identify",
+    "ethnicity": "I do not wish to self-identify",
+    "hispanic_or_latino": "I do not wish to self-identify",
+    "veteran_status": "I am not a protected veteran",
+    "disability_status": "I do not want to answer"
+  },
+  "targeting": {
+    "required_keywords_any": ["analyst", "analytics", "data"],
+    "excluded_keywords": ["unpaid", "commission only"],
+    "excluded_companies": []
+  },
+  "resume_path": "~/Documents/resume.pdf",
+  "how_did_you_hear": "LinkedIn",
+  "previously_worked_for": []
+}

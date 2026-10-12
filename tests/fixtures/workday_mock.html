@@ -1,0 +1,277 @@
+<!doctype html>
+<!-- A small imitation of a Workday tenant's apply flow, using the same data-automation-id
+     conventions and widget behaviours (listbox buttons, searchable prompts, hidden radios,
+     auto-advancing date segments, validation on Next). Not a copy of Workday markup. -->
+<html><head><meta charset="utf-8"><title>Mock Workday</title>
+<style>
+  body { font: 14px sans-serif; margin: 20px; }
+  .ff { margin: 8px 0; }
+  input[type=radio], input[type=checkbox] { opacity: 0; width: 1px; height: 1px; }
+  label { margin-right: 8px; cursor: pointer; }
+  [role=listbox] { border: 1px solid #888; padding: 4px; position: absolute; background: #fff; }
+  [role=option], [data-automation-id=promptOption] { padding: 2px 6px; cursor: pointer; }
+  .pill { background: #eee; margin-right: 4px; padding: 0 4px; }
+  .dates input { width: 40px; }
+</style></head>
+<body>
+<main id="app"></main>
+<script>
+const qs = new URLSearchParams(location.search);
+const STATE = { step: 'job', account: JSON.parse(localStorage.getItem('acct') || 'null'), extraStep: qs.get('extra') === '1', values: {} };
+const STEPS = ['My Information', 'My Experience', 'Application Questions'];
+if (STATE.extraStep) STEPS.push('Assessment');
+STEPS.push('Voluntary Disclosures', 'Self Identify', 'Review');
+
+const app = document.getElementById('app');
+let uid = 0;
+const h = (tag, attrs = {}, ...kids) => {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
+    else if (k === 'aid') el.setAttribute('data-automation-id', v);
+    else el.setAttribute(k, v);
+  }
+  for (const kid of kids.flat()) el.append(kid);
+  return el;
+};
+
+// ---- widgets ------------------------------------------------------------------------
+function textField(name, label, required) {
+  const id = 'f' + (++uid);
+  return h('div', { aid: 'formField-' + name, class: 'ff' },
+    h('label', { for: id }, label + (required ? '*' : '')),
+    h('input', { type: 'text', id, aid: name, ...(required ? { 'aria-required': 'true' } : {}) }));
+}
+function textArea(name, label, required) {
+  const id = 'f' + (++uid);
+  return h('div', { aid: 'formField-' + name, class: 'ff' },
+    h('label', { for: id }, label + (required ? '*' : '')),
+    h('textarea', { id, maxlength: '2000', ...(required ? { 'aria-required': 'true' } : {}) }));
+}
+function listbox(name, label, options, required, onChange) {
+  const id = 'f' + (++uid);
+  const btn = h('button', { type: 'button', id, 'aria-haspopup': 'listbox', aid: name }, 'Select One');
+  const wrap = h('div', { aid: 'formField-' + name, class: 'ff' },
+    h('label', { for: id }, label + (required ? '*' : '')), btn);
+  btn.addEventListener('click', () => {
+    closeListboxes();
+    const lb = h('ul', { role: 'listbox' }, ...options.map(o =>
+      h('li', { role: 'option', onclick: () => { btn.textContent = o; closeListboxes(); onChange && onChange(o); } }, o)));
+    document.body.append(lb);
+  });
+  return wrap;
+}
+function closeListboxes() { document.querySelectorAll('[role=listbox], .prompt-list').forEach(e => e.remove()); }
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeListboxes(); });
+
+function prompt(name, label, catalog, required) {
+  const id = 'f' + (++uid);
+  const pills = h('div', { aid: 'selectedItemList' });
+  const input = h('input', { type: 'text', id });
+  input.addEventListener('keydown', e => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    closeListboxes();
+    const q = input.value.toLowerCase();
+    const list = h('div', { class: 'prompt-list' }, ...catalog.filter(c => c.toLowerCase().includes(q)).map(c =>
+      h('div', { aid: 'promptOption', onclick: () => {
+        pills.append(h('span', { class: 'pill', role: 'listitem', aid: 'selectedItem' }, c));
+        input.value = ''; closeListboxes();
+      } }, c)));
+    document.body.append(list);
+  });
+  return h('div', { aid: 'formField-' + name, class: 'ff' },
+    h('label', { for: id }, label + (required ? '*' : '')),
+    h('div', { aid: 'multiselectInputContainer' }, pills, input));
+}
+function radios(name, label, options, required) {
+  const legend = h('legend', {}, label + (required ? '*' : ''));
+  const fs = h('fieldset', { aid: 'formField-' + name, class: 'ff' }, legend);
+  for (const o of options) {
+    const id = 'f' + (++uid);
+    fs.append(h('input', { type: 'radio', name: name, id, value: o }), h('label', { for: id }, o));
+  }
+  return fs;
+}
+function checkbox(name, label, required) {
+  const id = 'f' + (++uid);
+  return h('div', { aid: 'formField-' + name, class: 'ff' },
+    h('input', { type: 'checkbox', id, aid: name }), h('label', { for: id }, label + (required ? '*' : '')));
+}
+function checkboxes(name, label, options) {
+  const fs = h('fieldset', { aid: 'formField-' + name, class: 'ff' }, h('legend', {}, label + '*'));
+  for (const o of options) {
+    const id = 'f' + (++uid);
+    fs.append(h('input', { type: 'checkbox', id }), h('label', { for: id }, o));
+  }
+  return fs;
+}
+function dateField(name, label, parts) {
+  const ins = parts.map(p => h('input', { type: 'text', aid: `dateSection${p}-input`, maxlength: p === 'Year' ? '4' : '2' }));
+  ins.forEach((inp, i) => inp.addEventListener('input', () => {
+    if (inp.value.length >= Number(inp.getAttribute('maxlength')) && ins[i + 1]) ins[i + 1].focus();
+  }));
+  return h('div', { aid: 'formField-' + name, class: 'ff dates' }, h('label', {}, label + '*'), ...ins);
+}
+
+// ---- pages --------------------------------------------------------------------------
+function chrome(stepName, body, nextLabel = 'Save and Continue') {
+  const idx = STEPS.indexOf(stepName);
+  const bar = h('ol', { aid: 'progressBar' }, ...STEPS.map((s, i) =>
+    h('li', i === idx ? { aid: 'progressBarActiveStep' } : {}, i === idx ? `current step ${i + 1} of ${STEPS.length} ${s}` : s)));
+  const errs = h('div', { id: 'errs' });
+  const next = h('button', { aid: 'bottom-navigation-next-button', onclick: () => onNext(stepName, body, errs) }, nextLabel);
+  return [bar, h('div', { aid: 'pageHeader' }, h('h2', {}, stepName)), errs, body, next];
+}
+function onNext(stepName, body, errs) {
+  errs.innerHTML = '';
+  const missing = [];
+  for (const ff of body.querySelectorAll('[data-automation-id^="formField-"]')) {
+    if (!/\*/.test(ff.querySelector('label, legend')?.textContent || '') || !ff.offsetParent) continue;
+    const text = [...ff.querySelectorAll('input[type=text], textarea')].map(i => i.value).join('');
+    const btn = ff.querySelector('button[aria-haspopup]');
+    const checked = ff.querySelector('input:checked');
+    const pills = ff.querySelector('[data-automation-id=selectedItem]');
+    if (!(text || (btn && btn.textContent !== 'Select One') || checked || pills)) missing.push(ff.getAttribute('data-automation-id'));
+  }
+  if (missing.length) { missing.forEach(m => errs.append(h('div', { aid: 'errorMessage' }, 'Required: ' + m))); return; }
+  window.__submitted = window.__submitted || {};
+  window.__submitted[stepName] = snapshot(body);
+  if (stepName === 'Review') { render('done'); return; }
+  render(STEPS[STEPS.indexOf(stepName) + 1]);
+}
+function snapshot(body) {
+  const out = {};
+  for (const ff of body.querySelectorAll('[data-automation-id^="formField-"]')) {
+    const btn = ff.querySelector('button[aria-haspopup]');
+    if (!ff.offsetParent) continue;
+    let key = ff.getAttribute('data-automation-id'), n = 2;
+    while (key in out) key = ff.getAttribute('data-automation-id') + '#' + n++;
+    out[key] = btn ? btn.textContent :
+      [...ff.querySelectorAll('input[type=text], textarea')].map(i => i.value).join('/') ||
+      [...ff.querySelectorAll('input:checked')].map(i => document.querySelector(`label[for="${i.id}"]`).textContent).join('|') ||
+      [...ff.querySelectorAll('[data-automation-id=selectedItem]')].map(p => p.textContent).join('|');
+  }
+  return out;
+}
+
+function workPanel(i) {
+  const p = h('div', { aid: `workExperience-${i}`, role: 'group' }, h('h4', {}, `Work Experience ${i}`),
+    textField('jobTitle', 'Job Title', true), textField('company', 'Company', true), textField('location', 'Location'),
+    checkbox('currentlyWorkHere', 'I currently work here'),
+    dateField('startDate', 'From', ['Month', 'Year']), dateField('endDate', 'To', ['Month', 'Year']),
+    textArea('description', 'Role Description'),
+    h('button', { type: 'button', aid: 'panel-set-delete-button', onclick: () => p.remove() }, 'Delete'));
+  // Like Workday, "I currently work here" removes the To date.
+  const cur = p.querySelector('[data-automation-id=currentlyWorkHere]');
+  cur.addEventListener('change', () => {
+    p.querySelector('[data-automation-id=formField-endDate]').style.display = cur.checked ? 'none' : '';
+  });
+  return p;
+}
+function eduPanel(i) {
+  return h('div', { aid: `education-${i}`, role: 'group' }, h('h4', {}, `Education ${i}`),
+    textField('school', 'School or University', true),
+    listbox('degree', 'Degree', ["High School Diploma", "Associate's Degree", "Bachelor's Degree", "Master's Degree"], true),
+    prompt('fieldOfStudy', 'Field of Study', ['Economics', 'Computer Science', 'Mathematics']),
+    dateField('firstYearAttended', 'From', ['Year']), dateField('lastYearAttended', 'To', ['Year']));
+}
+
+function render(step) {
+  STATE.step = step; app.innerHTML = ''; closeListboxes();
+  if (step === 'job') {
+    app.append(h('h2', { aid: 'jobPostingHeader' }, 'Senior Data Analyst'),
+      h('div', { aid: 'jobPostingDescription' }, 'We are hiring a data analyst to own forecasting with SQL and Python.'),
+      h('a', { aid: 'adventureButton', href: '#', onclick: e => { e.preventDefault(); render('start'); } }, 'Apply'));
+  } else if (step === 'start') {
+    app.append(h('a', { aid: 'autofillWithResume', href: '#' }, 'Autofill with Resume'),
+      h('a', { aid: 'applyManually', href: '#', onclick: e => { e.preventDefault(); render('create'); } }, 'Apply Manually'));
+  } else if (step === 'create' || step === 'signin') {
+    const create = step === 'create';
+    const email = h('input', { type: 'email', aid: 'email' });
+    const pw = h('input', { type: 'password', aid: 'password' });
+    const vpw = h('input', { type: 'password', aid: 'verifyPassword' });
+    const terms = h('input', { type: 'checkbox', aid: 'createAccountCheckbox', id: 'terms' });
+    const err = h('div', {});
+    app.append(h('h2', {}, create ? 'Create Account' : 'Sign In'), err, email, pw);
+    if (create) {
+      app.append(vpw, terms, h('label', { for: 'terms' }, 'I agree to the terms'),
+        h('button', { aid: 'createAccountSubmitButton', onclick: () => {
+          if (!terms.checked || pw.value !== vpw.value || !email.value) { err.append(h('div', { aid: 'errorMessage' }, 'Invalid')); return; }
+          STATE.account = { email: email.value, pw: pw.value };
+          localStorage.setItem('acct', JSON.stringify(STATE.account)); render('signin');
+        } }, 'Create Account'),
+        h('button', { aid: 'signInLink', onclick: () => render('signin') }, 'Sign In'));
+    } else {
+      app.append(h('button', { aid: 'signInSubmitButton', onclick: () => {
+          if (!STATE.account || STATE.account.email !== email.value || STATE.account.pw !== pw.value) {
+            err.append(h('div', { aid: 'errorMessage' }, 'Wrong email or password')); return; }
+          render('My Information');
+        } }, 'Sign In'),
+        h('button', { aid: 'createAccountLink', onclick: () => render('create') }, 'Create Account'));
+    }
+  } else if (step === 'My Information') {
+    const addr = h('div', { id: 'addr' });
+    const body = h('div', {},
+      prompt('source', 'How Did You Hear About Us?', ['LinkedIn', 'Indeed', 'Company Website'], true),
+      radios('candidateIsPreviousWorker', 'Have you previously worked for this company?', ['Yes', 'No'], true),
+      listbox('countryDropdown', 'Country', ['Canada', 'United States of America'], true, () => {
+        addr.innerHTML = '';
+        addr.append(textField('legalNameSection_firstName', 'First Name', true),
+          textField('legalNameSection_lastName', 'Last Name', true),
+          textField('addressSection_addressLine1', 'Address Line 1', true),
+          textField('addressSection_city', 'City', true),
+          listbox('addressSection_countryRegion', 'State', ['California', 'New York', 'Texas'], true),
+          textField('addressSection_postalCode', 'Postal Code', true),
+          listbox('phone-device-type', 'Phone Device Type', ['Home', 'Mobile', 'Work'], true),
+          textField('phone-number', 'Phone Number', true),
+          checkbox('preferredCheck', 'I have a preferred name'));
+      }), addr);
+    app.append(...chrome(step, body));
+  } else if (step === 'My Experience') {
+    const work = h('div', { aid: 'workExperienceSection' }, h('h3', {}, 'Work Experience'));
+    let n = 0;
+    work.append(h('button', { type: 'button', aid: 'Add', onclick: () => work.insertBefore(workPanel(++n), work.lastChild) }, 'Add'));
+    // Pre-existing row from a "previous application" to exercise overwrite + delete logic.
+    work.insertBefore(workPanel(++n), work.lastChild);
+    const edu = h('div', { aid: 'educationSection' }, h('h3', {}, 'Education'));
+    let m = 0;
+    edu.append(h('button', { type: 'button', aid: 'Add', onclick: () => edu.insertBefore(eduPanel(++m), edu.lastChild) }, 'Add'));
+    const body = h('div', {}, work, edu,
+      prompt('skills', 'Type to Add Skills', ['Python', 'SQL', 'Tableau', 'Excel']),
+      h('div', {}, h('label', {}, 'Resume/CV'), h('input', { type: 'file', aid: 'file-upload-input-ref' })));
+    app.append(...chrome(step, body));
+  } else if (step === 'Application Questions') {
+    const body = h('div', {},
+      radios('q1', 'Will you now or in the future require sponsorship for employment visa status (e.g., H-1B)?', ['Yes', 'No'], true),
+      listbox('q2', 'Are you legally authorized to work in the country where this job is located?', ['Yes', 'No'], true),
+      listbox('q3', 'How many years of SQL experience do you have?', ['0-1', '2-4', '5+'], true),
+      radios('q4', 'Are you comfortable working in a hybrid environment?', ['Yes', 'No'], true),
+      textArea('q5', 'Why are you interested in this role?', true));
+    app.append(...chrome(step, body));
+  } else if (step === 'Assessment') {
+    app.append(...chrome(step, h('div', {}, h('p', { aid: 'customWidget' }, 'Custom tenant step'),
+      listbox('aq1', 'Preferred work shift', ['Day', 'Night'], true))));
+  } else if (step === 'Voluntary Disclosures') {
+    const body = h('div', {},
+      listbox('gender', 'Gender', ['Male', 'Female', 'I do not wish to self-identify'], true),
+      listbox('ethnicityDropdown', 'Please select the ethnicity which most accurately describes how you identify yourself',
+        ['Asian', 'White', 'Black or African American', 'I do not wish to self-identify'], true),
+      listbox('veteranStatus', 'Veteran Status', ['I am a protected veteran', 'I am not a protected veteran', 'I prefer not to answer'], true),
+      checkbox('agreementCheckbox', 'I have read and consent to the terms and conditions', true));
+    app.append(...chrome(step, body));
+  } else if (step === 'Self Identify') {
+    const body = h('div', {}, textField('name', 'Name', true),
+      dateField('dateSignedOn', "Today's Date", ['Month', 'Day', 'Year']),
+      checkboxes('disabilityStatus', 'Please check one of the boxes below',
+        ['Yes, I have a disability, or have had one in the past', 'No, I do not have a disability and have not had one in the past', 'I do not want to answer']));
+    app.append(...chrome(step, body));
+  } else if (step === 'Review') {
+    app.append(...chrome(step, h('div', { aid: 'reviewJobApplicationPage' }, h('pre', {}, JSON.stringify(window.__submitted, null, 1))), 'Submit'));
+  } else if (step === 'done') {
+    app.append(h('div', { aid: 'congratulationsPopup' }, h('h2', {}, 'Application Submitted'), 'Thank you for applying.'));
+  }
+}
+render('job');
+</script>
+</body></html>

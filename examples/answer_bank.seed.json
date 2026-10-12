@@ -1,0 +1,30 @@
+{
+  "are you comfortable working in a hybrid environment": {
+    "question": "Are you comfortable working in a hybrid environment?",
+    "answer": "Yes",
+    "options_seen": [
+      "Yes",
+      "No"
+    ],
+    "kind": "choice",
+    "intent": null,
+    "source": "manual",
+    "approved": true,
+    "approved_at": "2026-10-12T00:00:00+00:00",
+    "uses": 0
+  },
+  "do you have professional experience with sql": {
+    "question": "Do you have professional experience with SQL?",
+    "answer": "Yes",
+    "options_seen": [
+      "Yes",
+      "No"
+    ],
+    "kind": "choice",
+    "intent": null,
+    "source": "manual",
+    "approved": true,
+    "approved_at": "2026-10-12T00:00:00+00:00",
+    "uses": 0
+  }
+}

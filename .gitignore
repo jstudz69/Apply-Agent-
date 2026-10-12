@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+# Personal data never goes in git.
+data/
+profile.json
+answer_bank.json
+credentials.json
+token.json
+*.egg-info/
